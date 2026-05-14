@@ -2,12 +2,17 @@ export type CuisineCategory =
   | "chinese"
   | "malay"
   | "indian"
+  | "indonesian"
+  | "vietnamese"
   | "western"
+  | "italian"
+  | "mexican"
   | "japanese"
   | "korean"
   | "thai"
   | "fast_food"
   | "cafe"
+  | "dessert"
   | "other";
 
 // ── Flat row types ───────────────────────────────────────────────────────────

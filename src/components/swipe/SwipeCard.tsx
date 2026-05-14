@@ -3,6 +3,7 @@
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { useRef } from "react";
 import type { RestaurantRow } from "@/lib/supabase/types";
+import { CUISINE_LABELS } from "@/app/admin/RestaurantForm";
 import { MapPin } from "lucide-react";
 
 type Restaurant = RestaurantRow;
@@ -109,7 +110,7 @@ export function SwipeCard({ restaurant, onSwipe, isTop, stackIndex }: SwipeCardP
           </div>
 
           <div className="flex items-center gap-3 text-sm text-text-muted">
-            <span className="capitalize">{restaurant.cuisine_category.replace("_", " ")}</span>
+            <span>{CUISINE_LABELS[restaurant.cuisine_category] ?? restaurant.cuisine_category}</span>
             {restaurant.is_on_campus ? (
               <span className="flex items-center gap-1">
                 <MapPin size={13} />
@@ -149,16 +150,10 @@ export function SwipeCard({ restaurant, onSwipe, isTop, stackIndex }: SwipeCardP
 
 function cuisineEmoji(cuisine: string): string {
   const map: Record<string, string> = {
-    chinese: "🍜",
-    malay: "🍛",
-    indian: "🫓",
-    western: "🍔",
-    japanese: "🍱",
-    korean: "🥘",
-    thai: "🌶️",
-    fast_food: "🍟",
-    cafe: "☕",
-    other: "🍽️",
+    chinese: "🍜", malay: "🍛", indian: "🫓", indonesian: "🍲",
+    vietnamese: "🥗", western: "🍔", italian: "🍝", mexican: "🌮",
+    japanese: "🍱", korean: "🥘", thai: "🌶️", fast_food: "🍟",
+    cafe: "☕", dessert: "🍨", other: "🍽️",
   };
   return map[cuisine] ?? "🍽️";
 }

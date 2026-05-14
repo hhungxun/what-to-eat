@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Share2, RotateCcw, Trophy, ChefHat } from "lucide-react";
 import type { SessionRow, RestaurantRow, SwipeEventRow } from "@/lib/supabase/types";
+import { CUISINE_LABELS } from "@/app/admin/RestaurantForm";
 
 type Session = SessionRow;
 type Restaurant = RestaurantRow;
@@ -18,21 +19,28 @@ interface Props {
 }
 
 const CUISINE_EMOJI: Record<string, string> = {
-  chinese: "🍜", malay: "🍛", indian: "🫓", western: "🍔",
-  japanese: "🍱", korean: "🥘", thai: "🌶️", fast_food: "🍟", cafe: "☕", other: "🍽️",
+  chinese: "🍜", malay: "🍛", indian: "🫓", indonesian: "🍲",
+  vietnamese: "🍜", western: "🍔", italian: "🍝", mexican: "🌮",
+  japanese: "🍱", korean: "🥘", thai: "🌶️", fast_food: "🍟",
+  cafe: "☕", dessert: "🍨", other: "🍽️",
 };
 
 const FOOD_PERSONALITY: Record<string, { label: string; desc: string }> = {
-  chinese:   { label: "Noodle Addict",     desc: "Comfort food is your love language." },
-  malay:     { label: "Kampung Soul",       desc: "Rich flavours, no apologies." },
-  indian:    { label: "Spice Chaser",       desc: "The hotter, the better." },
-  western:   { label: "Brunch Energy",      desc: "You know what you want and you want it fast." },
-  japanese:  { label: "Precision Eater",    desc: "Aesthetic presentation matters." },
-  korean:    { label: "K-Food Stan",        desc: "You'd eat tteokbokki every day if you could." },
-  thai:      { label: "Street Food Lover",  desc: "Bold, punchy, and a little chaotic." },
-  fast_food: { label: "Speed Runner",       desc: "Time is precious. Food should be instant." },
-  cafe:      { label: "Café Hopper",        desc: "Every meal is a vibe." },
-  other:     { label: "Wild Card",          desc: "You keep everyone guessing." },
+  chinese:    { label: "Noodle Addict",      desc: "Comfort food is your love language." },
+  malay:      { label: "Kampung Soul",        desc: "Rich flavours, no apologies." },
+  indian:     { label: "Spice Chaser",        desc: "The hotter, the better." },
+  indonesian: { label: "Nasi Lover",          desc: "You believe every meal should come with rice." },
+  vietnamese: { label: "Pho Real",            desc: "Light, fresh, and completely addictive." },
+  western:    { label: "Brunch Energy",       desc: "You know what you want and you want it fast." },
+  italian:    { label: "Pasta Purist",        desc: "Simple ingredients, big feelings." },
+  mexican:    { label: "Taco Tuesday Every Day", desc: "Life's too short for bland food." },
+  japanese:   { label: "Precision Eater",     desc: "Aesthetic presentation matters." },
+  korean:     { label: "K-Food Stan",         desc: "You'd eat tteokbokki every day if you could." },
+  thai:       { label: "Street Food Lover",   desc: "Bold, punchy, and a little chaotic." },
+  fast_food:  { label: "Speed Runner",        desc: "Time is precious. Food should be instant." },
+  cafe:       { label: "Café Hopper",         desc: "Every meal is a vibe." },
+  dessert:    { label: "Sweet Tooth",         desc: "Dessert isn't the ending — it's the point." },
+  other:      { label: "Wild Card",           desc: "You keep everyone guessing." },
 };
 
 export function ResultsClient({ session, swipeEvents, topRestaurant }: Props) {
@@ -80,8 +88,8 @@ export function ResultsClient({ session, swipeEvents, topRestaurant }: Props) {
               <Trophy size={12} /> Your #1 pick
             </p>
             <p className="font-bold text-lg">{topRestaurant.name}</p>
-            <p className="text-white/70 text-sm capitalize">
-              {topRestaurant.cuisine_category.replace("_", " ")} ·{" "}
+            <p className="text-white/70 text-sm">
+              {CUISINE_LABELS[topRestaurant.cuisine_category] ?? topRestaurant.cuisine_category} ·{" "}
               {topRestaurant.is_on_campus
                 ? topRestaurant.location_label ?? "On campus"
                 : `${topRestaurant.distance_km ?? ""}km away`}
@@ -93,8 +101,8 @@ export function ResultsClient({ session, swipeEvents, topRestaurant }: Props) {
           <span className="bg-white/20 rounded-full px-3 py-1">
             {session.total_yes}/{session.total_shown} liked
           </span>
-          <span className="bg-white/20 rounded-full px-3 py-1 capitalize flex items-center gap-1">
-            {CUISINE_EMOJI[topCuisine]} {topCuisine.replace("_", " ")}
+          <span className="bg-white/20 rounded-full px-3 py-1 flex items-center gap-1">
+            {CUISINE_EMOJI[topCuisine]} {CUISINE_LABELS[topCuisine as keyof typeof CUISINE_LABELS] ?? topCuisine}
           </span>
         </div>
       </motion.div>
@@ -126,8 +134,8 @@ export function ResultsClient({ session, swipeEvents, topRestaurant }: Props) {
                   <p className="font-semibold text-text text-sm truncate">
                     {event.restaurants?.name ?? "Unknown"}
                   </p>
-                  <p className="text-xs text-text-muted capitalize">
-                    {event.cuisine_category.replace("_", " ")}
+                  <p className="text-xs text-text-muted">
+                    {CUISINE_LABELS[event.cuisine_category as keyof typeof CUISINE_LABELS] ?? event.cuisine_category}
                   </p>
                 </div>
                 <div className="w-10 h-1.5 bg-border rounded-full overflow-hidden">

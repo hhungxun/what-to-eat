@@ -12,7 +12,10 @@ function adminClient() {
 function isAdmin(req: Request) {
   const cookie = req.headers.get("cookie") ?? "";
   const match = cookie.match(/wte-admin=([^;]+)/);
-  return match?.[1] === process.env.ADMIN_SECRET;
+  const value = match?.[1];
+  if (!value) return false;
+  const secrets = (process.env.ADMIN_SECRETS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  return secrets.includes(value);
 }
 
 export async function GET(req: Request) {

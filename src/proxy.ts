@@ -2,13 +2,24 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-export async function middleware(request: NextRequest) {
+function isAdminAuthorized(request: NextRequest): boolean {
+  const cookie = request.cookies.get("wte-admin")?.value;
+  if (!cookie) return false;
+
+  const secrets = (process.env.ADMIN_SECRETS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return secrets.includes(cookie);
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Admin route protection
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
-    const adminCookie = request.cookies.get("wte-admin")?.value;
-    if (adminCookie !== process.env.ADMIN_SECRET) {
+    if (!isAdminAuthorized(request)) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
     return NextResponse.next();

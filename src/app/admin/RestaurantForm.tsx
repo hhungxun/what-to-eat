@@ -25,11 +25,84 @@ export const CUISINE_LABELS: Record<CuisineCategory, string> = {
   other:      "Other",
 };
 
-const PRICE_OPTIONS: { value: 1 | 2 | 3; label: string; sub: string }[] = [
-  { value: 1, label: "$ Budget",   sub: "RM 1–10"  },
-  { value: 2, label: "$$ Mid",     sub: "RM 11–25" },
-  { value: 3, label: "$$$ Pricey", sub: "RM 26+"   },
-];
+const PRICE_TRACK_MAX = 150;
+
+function priceRangeFromMinMax(min: number, max: number): 1 | 2 | 3 {
+  if (max <= 15) return 1;
+  if (max <= 35) return 2;
+  return 3;
+}
+
+interface PriceSliderProps {
+  min: number;
+  max: number;
+  onChange: (min: number, max: number) => void;
+}
+
+function PriceSlider({ min, max, onChange }: PriceSliderProps) {
+  const leftPct = ((min - 1) / (PRICE_TRACK_MAX - 1)) * 100;
+  const rightPct = ((PRICE_TRACK_MAX - max) / (PRICE_TRACK_MAX - 1)) * 100;
+
+  function setMin(raw: number) {
+    const v = Math.max(1, Math.min(raw, max - 1));
+    onChange(v, max);
+  }
+  function setMax(raw: number) {
+    const v = Math.min(PRICE_TRACK_MAX, Math.max(raw, min + 1));
+    onChange(min, v);
+  }
+
+  const label = max >= PRICE_TRACK_MAX ? `RM ${min}+` : `RM ${min} – RM ${max}`;
+  const tier = priceRangeFromMinMax(min, max);
+  const tierLabel = tier === 1 ? "Budget" : tier === 2 ? "Mid-range" : "Pricey";
+
+  return (
+    <div className="space-y-3">
+      {/* Track */}
+      <div className="relative h-7 flex items-center">
+        <div className="absolute w-full h-1.5 bg-border rounded-full">
+          <div
+            className="absolute h-full bg-brand rounded-full"
+            style={{ left: `${leftPct}%`, right: `${rightPct}%` }}
+          />
+        </div>
+        <input
+          type="range" min={1} max={PRICE_TRACK_MAX} value={min}
+          onChange={(e) => setMin(+e.target.value)}
+          className="price-thumb"
+        />
+        <input
+          type="range" min={1} max={PRICE_TRACK_MAX} value={max}
+          onChange={(e) => setMax(+e.target.value)}
+          className="price-thumb"
+        />
+      </div>
+
+      {/* Editable inputs */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-1">
+          <span className="text-sm text-text-muted shrink-0">RM</span>
+          <input
+            type="number" min={1} max={max - 1} value={min}
+            onChange={(e) => setMin(+e.target.value)}
+            className="input text-sm text-center"
+          />
+        </div>
+        <span className="text-text-muted text-sm shrink-0">–</span>
+        <div className="flex items-center gap-1.5 flex-1">
+          <span className="text-sm text-text-muted shrink-0">RM</span>
+          <input
+            type="number" min={min + 1} max={PRICE_TRACK_MAX} value={max}
+            onChange={(e) => setMax(+e.target.value)}
+            className="input text-sm text-center"
+          />
+        </div>
+      </div>
+
+      <p className="text-xs text-text-muted">{label} · {tierLabel}</p>
+    </div>
+  );
+}
 
 // Parse a place name from common Google Maps URL formats
 function parseGoogleMapsName(url: string): string | null {
@@ -71,6 +144,9 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
   const [resolving, setResolving] = useState(false);
   const [mapsHint, setMapsHint] = useState<string | null>(null);
 
+  const [priceMin, setPriceMin] = useState(initial?.price_min ?? 1);
+  const [priceMax, setPriceMax] = useState(initial?.price_max ?? 20);
+
   const [form, setForm] = useState<InsertRestaurant>({
     name: initial?.name ?? "",
     cuisine_category: initial?.cuisine_category ?? "other",
@@ -80,6 +156,8 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
     is_on_campus: initial?.is_on_campus ?? true,
     image_url: initial?.image_url ?? "",
     price_range: initial?.price_range ?? 1,
+    price_min: initial?.price_min ?? null,
+    price_max: initial?.price_max ?? null,
     tags: initial?.tags ?? [],
     is_active: initial?.is_active ?? true,
   });
@@ -156,6 +234,9 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
       description: form.description || null,
       location_label: form.location_label || null,
       distance_km: form.is_on_campus ? null : Number(form.distance_km) || null,
+      price_min: priceMin,
+      price_max: priceMax,
+      price_range: priceRangeFromMinMax(priceMin, priceMax),
     };
 
     const res = await fetch(url, {
@@ -233,23 +314,11 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
 
       {/* Price range */}
       <Field label="Price range *">
-        <div className="flex gap-2">
-          {PRICE_OPTIONS.map(({ value, label, sub }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => set("price_range", value)}
-              className={`flex-1 py-2 px-1 rounded-xl border-2 text-sm font-semibold transition-colors flex flex-col items-center leading-tight ${
-                form.price_range === value
-                  ? "border-brand bg-brand text-white"
-                  : "border-border text-text-muted"
-              }`}
-            >
-              <span>{label}</span>
-              <span className={`text-xs font-normal ${form.price_range === value ? "text-white/80" : "text-text-muted/70"}`}>{sub}</span>
-            </button>
-          ))}
-        </div>
+        <PriceSlider
+          min={priceMin}
+          max={priceMax}
+          onChange={(mn, mx) => { setPriceMin(mn); setPriceMax(mx); }}
+        />
       </Field>
 
       {/* Campus toggle */}

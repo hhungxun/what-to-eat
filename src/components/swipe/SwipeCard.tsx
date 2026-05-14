@@ -11,11 +11,21 @@ type Restaurant = RestaurantRow;
 const SWIPE_THRESHOLD = 80; // px to count as a swipe
 const ROTATION_FACTOR = 0.08;
 
-const PRICE_LABELS: Record<number, string> = { 1: "Budget", 2: "Mid", 3: "Pricey" };
-const PRICE_DOTS = (range: number) =>
-  Array.from({ length: 3 }, (_, i) => (
-    <span key={i} className={i < range ? "text-brand" : "text-border"}>•</span>
-  ));
+function PriceDisplay({ restaurant }: { restaurant: Restaurant }) {
+  if (restaurant.price_min != null && restaurant.price_max != null) {
+    const label = restaurant.price_max >= 150
+      ? `RM ${restaurant.price_min}+`
+      : `RM ${restaurant.price_min}–${restaurant.price_max}`;
+    return <span className="text-sm font-medium text-text-muted">{label}</span>;
+  }
+  return (
+    <span className="text-lg">
+      {Array.from({ length: 3 }, (_, i) => (
+        <span key={i} className={i < restaurant.price_range ? "text-brand" : "text-border"}>•</span>
+      ))}
+    </span>
+  );
+}
 
 interface SwipeCardProps {
   restaurant: Restaurant;
@@ -104,8 +114,8 @@ export function SwipeCard({ restaurant, onSwipe, isTop, stackIndex }: SwipeCardP
         <div className="p-4 flex flex-col gap-1">
           <div className="flex items-start justify-between gap-2">
             <h2 className="text-xl font-bold text-text leading-tight">{restaurant.name}</h2>
-            <div className="flex items-center gap-0.5 text-lg shrink-0 mt-0.5">
-              {PRICE_DOTS(restaurant.price_range)}
+            <div className="shrink-0 mt-0.5">
+              <PriceDisplay restaurant={restaurant} />
             </div>
           </div>
 

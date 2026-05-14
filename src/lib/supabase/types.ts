@@ -27,6 +27,8 @@ export type RestaurantRow = {
   is_on_campus: boolean;
   image_url: string | null;
   price_range: 1 | 2 | 3;
+  price_min: number | null;
+  price_max: number | null;
   tags: string[];
   is_active: boolean;
   created_at: string;

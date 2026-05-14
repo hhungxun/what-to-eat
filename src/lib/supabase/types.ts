@@ -29,6 +29,11 @@ export type RestaurantRow = {
   price_range: 1 | 2 | 3;
   price_min: number | null;
   price_max: number | null;
+  opens_at: string | null;
+  closes_at: string | null;
+  is_halal: boolean;
+  is_vegetarian: boolean;
+  is_vegan: boolean;
   tags: string[];
   is_active: boolean;
   created_at: string;

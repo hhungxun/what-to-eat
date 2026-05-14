@@ -1,15 +1,12 @@
 "use client";
 
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { RestaurantRow } from "@/lib/supabase/types";
 import { CUISINE_LABELS } from "@/app/admin/RestaurantForm";
-import { MapPin } from "lucide-react";
+import { Clock, MapPin } from "lucide-react";
 
 type Restaurant = RestaurantRow;
-
-const SWIPE_THRESHOLD = 80; // px to count as a swipe
-const ROTATION_FACTOR = 0.08;
 
 function PriceDisplay({ restaurant }: { restaurant: Restaurant }) {
   if (restaurant.price_min != null && restaurant.price_max != null) {
@@ -27,6 +24,15 @@ function PriceDisplay({ restaurant }: { restaurant: Restaurant }) {
   );
 }
 
+function hoursLabel(opensAt: string | null, closesAt: string | null): string | null {
+  if (!opensAt || !closesAt) return null;
+  const fmt = (t: string) => {
+    const [h, m] = t.split(":");
+    return `${parseInt(h)}:${m}`;
+  };
+  return `${fmt(opensAt)} – ${fmt(closesAt)}`;
+}
+
 interface SwipeCardProps {
   restaurant: Restaurant;
   onSwipe: (decision: boolean, timeToDecide: number) => void;
@@ -39,19 +45,31 @@ export function SwipeCard({ restaurant, onSwipe, isTop, stackIndex }: SwipeCardP
   const rotate = useTransform(x, [-200, 200], [-20, 20]);
   const yesOpacity = useTransform(x, [20, 80], [0, 1]);
   const noOpacity = useTransform(x, [-80, -20], [1, 0]);
-  const startTimeRef = useRef<number>(Date.now());
+  const startTimeRef = useRef<number>(0);
+  const swipeThresholdRef = useRef(Math.round(window.innerWidth * 0.25));
+  const hours = hoursLabel(restaurant.opens_at, restaurant.closes_at);
 
-  function handleDragEnd(_: unknown, info: { offset: { x: number } }) {
+  useEffect(() => {
+    if (isTop) startTimeRef.current = Date.now();
+  }, [isTop]);
+
+  function handleDragEnd(_: unknown, info: { offset: { x: number }; velocity: { x: number } }) {
     if (!isTop) return;
     const elapsed = Date.now() - startTimeRef.current;
+    const offsetX = info.offset.x;
+    const velocityX = info.velocity.x;
+    const distancePass = Math.abs(offsetX) > swipeThresholdRef.current;
+    const velocityPass = Math.abs(velocityX) > 250;
 
-    if (info.offset.x > SWIPE_THRESHOLD) {
-      animate(x, 600, { duration: 0.25 }).then(() => onSwipe(true, elapsed));
-    } else if (info.offset.x < -SWIPE_THRESHOLD) {
-      animate(x, -600, { duration: 0.25 }).then(() => onSwipe(false, elapsed));
-    } else {
+    if (!distancePass && !velocityPass) {
       animate(x, 0, { type: "spring", stiffness: 300, damping: 25 });
+      return;
     }
+
+    const direction = distancePass ? Math.sign(offsetX) : Math.sign(velocityX);
+    animate(x, direction > 0 ? 600 : -600, { duration: 0.25 }).then(() =>
+      onSwipe(direction > 0, elapsed)
+    );
   }
 
   // Stack visual offset
@@ -136,12 +154,34 @@ export function SwipeCard({ restaurant, onSwipe, isTop, stackIndex }: SwipeCardP
             )}
           </div>
 
+          {hours && (
+            <div className="flex items-center gap-1 text-xs text-text-muted">
+              <Clock size={11} />
+              <span>{hours}</span>
+            </div>
+          )}
+
           {restaurant.description && (
             <p className="text-sm text-text-muted mt-1 line-clamp-2">{restaurant.description}</p>
           )}
 
-          {restaurant.tags.length > 0 && (
+          {(restaurant.is_halal || restaurant.is_vegetarian || restaurant.is_vegan || restaurant.tags.length > 0) && (
             <div className="flex flex-wrap gap-1 mt-2">
+              {restaurant.is_halal && (
+                <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                  Halal
+                </span>
+              )}
+              {restaurant.is_vegetarian && (
+                <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                  Veg
+                </span>
+              )}
+              {restaurant.is_vegan && (
+                <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                  Vegan
+                </span>
+              )}
               {restaurant.tags.slice(0, 4).map((tag) => (
                 <span
                   key={tag}

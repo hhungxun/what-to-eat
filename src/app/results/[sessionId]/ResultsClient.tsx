@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Share2, RotateCcw, Trophy, ChefHat } from "lucide-react";
+import { Share2, RotateCcw, Trophy, ChefHat, Zap } from "lucide-react";
 import type { SessionRow, RestaurantRow, SwipeEventRow } from "@/lib/supabase/types";
 import { CUISINE_LABELS } from "@/app/admin/RestaurantForm";
 
@@ -47,12 +47,14 @@ export function ResultsClient({ session, swipeEvents, topRestaurant }: Props) {
   const router = useRouter();
 
   const yesEvents = swipeEvents.filter((e) => e.decision);
-  const noEvents = swipeEvents.filter((e) => !e.decision);
   const topCuisine = session.top_cuisine ?? "other";
   const personality = FOOD_PERSONALITY[topCuisine] ?? FOOD_PERSONALITY.other;
 
   // Ranked yes restaurants
   const rankedYes = [...yesEvents].sort((a, b) => b.session_score - a.session_score);
+  const fastestYes = yesEvents.length > 0
+    ? yesEvents.reduce((best, e) => (e.time_to_decide < best.time_to_decide ? e : best))
+    : null;
 
   async function handleShare() {
     const text = `I just used What To Eat and my #1 pick is ${topRestaurant?.name ?? "something delicious"} 🔥 — ${personality.label}`;
@@ -107,6 +109,22 @@ export function ResultsClient({ session, swipeEvents, topRestaurant }: Props) {
         </div>
       </motion.div>
 
+      {fastestYes && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-surface rounded-xl px-4 py-3 mx-4 mt-4 shadow-sm flex items-center gap-3"
+        >
+          <Zap size={18} className="text-brand shrink-0" />
+          <p className="text-sm text-text">
+            You decided fastest on{" "}
+            <span className="font-semibold">{fastestYes.restaurants?.name ?? "Unknown"}</span>{" "}
+            <span className="text-text-muted">({(fastestYes.time_to_decide / 1000).toFixed(1)}s)</span>
+          </p>
+        </motion.div>
+      )}
+
       {/* Ranked list */}
       {rankedYes.length > 0 && (
         <motion.section
@@ -145,30 +163,6 @@ export function ResultsClient({ session, swipeEvents, topRestaurant }: Props) {
                   />
                 </div>
               </div>
-            ))}
-          </div>
-        </motion.section>
-      )}
-
-      {/* No swipes */}
-      {noEvents.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          className="px-4 mt-6"
-        >
-          <h2 className="font-bold text-text mb-3 text-sm text-text-muted">
-            Not today ({noEvents.length})
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {noEvents.map((event) => (
-              <span
-                key={event.id}
-                className="px-3 py-1 rounded-full bg-border text-text-muted text-sm"
-              >
-                {event.restaurants?.name ?? "Unknown"}
-              </span>
             ))}
           </div>
         </motion.section>

@@ -1,6 +1,12 @@
-import Link from "next/link";
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <main className="min-h-screen bg-bg flex flex-col items-center justify-center px-6 text-center">
       <div className="space-y-6 max-w-xs">
@@ -20,12 +26,21 @@ export default function Home() {
           >
             Start Swiping 🍽️
           </Link>
-          <Link
-            href="/auth"
-            className="block w-full py-3 border-2 border-brand text-brand font-semibold rounded-2xl"
-          >
-            Sign In / Sign Up
-          </Link>
+          {user ? (
+            <Link
+              href="/history"
+              className="block text-sm text-brand font-semibold"
+            >
+              📋 Your history
+            </Link>
+          ) : (
+            <Link
+              href="/auth"
+              className="block w-full py-3 border-2 border-brand text-brand font-semibold rounded-2xl"
+            >
+              Sign In / Sign Up
+            </Link>
+          )}
         </div>
 
         <p className="text-xs text-text-muted">

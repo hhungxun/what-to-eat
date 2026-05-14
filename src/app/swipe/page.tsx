@@ -3,6 +3,10 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { SwipeSession } from "./SwipeSession";
 
+function randomSort() {
+  return Math.random() - 0.5;
+}
+
 export default async function SwipePage() {
   const supabase = await createClient();
 
@@ -14,7 +18,7 @@ export default async function SwipePage() {
 
   // Shuffle and cap at 20
   const shuffled = (restaurants ?? [])
-    .sort(() => Math.random() - 0.5)
+    .sort(randomSort)
     .slice(0, 20);
 
   return <SwipeSession restaurants={shuffled} />;

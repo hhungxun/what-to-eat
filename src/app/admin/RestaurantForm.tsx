@@ -143,6 +143,8 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
   const [mapsUrl, setMapsUrl] = useState("");
   const [resolving, setResolving] = useState(false);
   const [mapsHint, setMapsHint] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showImageUrlInput, setShowImageUrlInput] = useState(false);
 
   const [priceMin, setPriceMin] = useState(initial?.price_min ?? 1);
   const [priceMax, setPriceMax] = useState(initial?.price_max ?? 20);
@@ -158,6 +160,11 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
     price_range: initial?.price_range ?? 1,
     price_min: initial?.price_min ?? null,
     price_max: initial?.price_max ?? null,
+    opens_at: initial?.opens_at ?? null,
+    closes_at: initial?.closes_at ?? null,
+    is_halal: initial?.is_halal ?? false,
+    is_vegetarian: initial?.is_vegetarian ?? false,
+    is_vegan: initial?.is_vegan ?? false,
     tags: initial?.tags ?? [],
     is_active: initial?.is_active ?? true,
   });
@@ -176,6 +183,38 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
       set("tags", [...form.tags, tag]);
     }
     setTagInput("");
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/admin/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Failed to upload image");
+        return;
+      }
+
+      set("image_url", data.url);
+      setShowImageUrlInput(false);
+    } catch {
+      setError("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
   }
 
   function removeTag(tag: string) {
@@ -237,6 +276,8 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
       price_min: priceMin,
       price_max: priceMax,
       price_range: priceRangeFromMinMax(priceMin, priceMax),
+      opens_at: form.opens_at || null,
+      closes_at: form.closes_at || null,
     };
 
     const res = await fetch(url, {
@@ -363,12 +404,33 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
               step="0.1"
               min="0"
               value={form.distance_km ?? ""}
-              onChange={(e) => set("distance_km", parseFloat(e.target.value) as any)}
+              onChange={(e) => set("distance_km", e.target.value === "" ? null : Number(e.target.value))}
               className="input w-24"
               placeholder="km"
             />
           </div>
         )}
+      </Field>
+
+      <Field label="Operating Hours">
+        <div className="flex gap-2 items-center">
+          <input
+            type="time"
+            value={form.opens_at ?? ""}
+            onChange={(e) => set("opens_at", e.target.value || null)}
+            className="input flex-1"
+            placeholder="Opens"
+          />
+          <span className="text-text-muted text-sm shrink-0">to</span>
+          <input
+            type="time"
+            value={form.closes_at ?? ""}
+            onChange={(e) => set("closes_at", e.target.value || null)}
+            className="input flex-1"
+            placeholder="Closes"
+          />
+        </div>
+        <p className="text-xs text-text-muted mt-1">Leave blank if open all day / unknown</p>
       </Field>
 
       {/* Description */}
@@ -381,15 +443,44 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
         />
       </Field>
 
-      {/* Image URL */}
-      <Field label="Image URL">
-        <input
-          type="url"
-          value={form.image_url ?? ""}
-          onChange={(e) => set("image_url", e.target.value)}
-          className="input"
-          placeholder="https://…"
-        />
+      <Field label="Image">
+        <div className="space-y-2">
+          {form.image_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={form.image_url}
+              alt=""
+              className="max-h-24 rounded-xl object-cover border border-border"
+            />
+          )}
+          <label className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-brand text-white text-sm font-semibold cursor-pointer disabled:opacity-50">
+            {uploadingImage && <Loader2 size={14} className="animate-spin" />}
+            {uploadingImage ? "Uploading..." : "Upload image"}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={uploadingImage}
+              className="hidden"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowImageUrlInput((prev) => !prev)}
+            className="block text-xs text-brand font-semibold"
+          >
+            or paste URL
+          </button>
+          {showImageUrlInput && (
+            <input
+              type="url"
+              value={form.image_url ?? ""}
+              onChange={(e) => set("image_url", e.target.value)}
+              className="input"
+              placeholder="https://…"
+            />
+          )}
+        </div>
       </Field>
 
       {/* Tags */}
@@ -416,6 +507,38 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
             ))}
           </div>
         )}
+      </Field>
+
+      <Field label="Dietary">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => set("is_halal", !form.is_halal)}
+            className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-colors ${
+              form.is_halal ? "bg-green-500 text-white border-green-500" : "border-border text-text-muted"
+            }`}
+          >
+            Halal
+          </button>
+          <button
+            type="button"
+            onClick={() => set("is_vegetarian", !form.is_vegetarian)}
+            className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-colors ${
+              form.is_vegetarian ? "bg-green-500 text-white border-green-500" : "border-border text-text-muted"
+            }`}
+          >
+            Vegetarian
+          </button>
+          <button
+            type="button"
+            onClick={() => set("is_vegan", !form.is_vegan)}
+            className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-colors ${
+              form.is_vegan ? "bg-green-500 text-white border-green-500" : "border-border text-text-muted"
+            }`}
+          >
+            Vegan
+          </button>
+        </div>
       </Field>
 
       {/* Active toggle */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import { SwipeCard } from "./SwipeCard";
 import { SwipeButtons } from "./SwipeButtons";
@@ -17,7 +17,11 @@ interface SwipeDeckProps {
 export function SwipeDeck({ restaurants, onComplete }: SwipeDeckProps) {
   const [remaining, setRemaining] = useState(restaurants);
   const [swipes, setSwipes] = useState<SwipeRecord[]>([]);
-  const cardStartTime = useRef<number>(Date.now());
+  const cardStartTime = useRef<number>(0);
+
+  useEffect(() => {
+    cardStartTime.current = Date.now();
+  }, []);
 
   const handleSwipe = useCallback(
     (decision: boolean, timeToDecide: number) => {
@@ -52,6 +56,17 @@ export function SwipeDeck({ restaurants, onComplete }: SwipeDeckProps) {
     },
     [handleSwipe]
   );
+
+  const handleUndo = useCallback(() => {
+    if (swipes.length === 0) return;
+    const lastSwipe = swipes[swipes.length - 1];
+    const lastRestaurant = restaurants.find((r) => r.id === lastSwipe.restaurantId);
+    if (!lastRestaurant) return;
+
+    setSwipes(swipes.slice(0, -1));
+    setRemaining([lastRestaurant, ...remaining]);
+    cardStartTime.current = Date.now();
+  }, [remaining, restaurants, swipes]);
 
   if (remaining.length === 0) return null;
 
@@ -88,7 +103,12 @@ export function SwipeDeck({ restaurants, onComplete }: SwipeDeckProps) {
       </div>
 
       {/* Buttons */}
-      <SwipeButtons onNo={() => handleButton(false)} onYes={() => handleButton(true)} />
+      <SwipeButtons
+        onNo={() => handleButton(false)}
+        onUndo={handleUndo}
+        canUndo={swipes.length > 0}
+        onYes={() => handleButton(true)}
+      />
     </div>
   );
 }

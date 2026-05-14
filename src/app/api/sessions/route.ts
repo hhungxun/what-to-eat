@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { scoreSession, rankCategories, rankRestaurants } from "@/lib/scoring";
 import type { SwipeRecord } from "@/lib/scoring";
+import type { CuisineCategory } from "@/lib/supabase/types";
 
 export async function POST(req: Request) {
   const { swipes }: { swipes: SwipeRecord[] } = await req.json();
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       user_id: user?.id ?? null,
       total_shown: swipes.length,
       total_yes: yesSwipes.length,
-      top_cuisine: rankedCategories[0]?.category as any ?? null,
+      top_cuisine: (rankedCategories[0]?.category as CuisineCategory | undefined) ?? null,
       top_restaurant_id: rankedRestaurants[0]?.id ?? null,
       t_yes_avg: tYesAvg,
       t_yes_sd: tYesSd,
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
     session_id: session.id,
     user_id: user?.id ?? null,
     restaurant_id: s.restaurantId,
-    cuisine_category: s.cuisineCategory as any,
+    cuisine_category: s.cuisineCategory as CuisineCategory,
     decision: s.decision,
     time_to_decide: s.timeToDecide,
     swipe_order: i,

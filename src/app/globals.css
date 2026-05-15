@@ -54,13 +54,25 @@ html, body {
   color: var(--color-text-muted);
 }
 
-.input-no-spinner {
-  -moz-appearance: textfield;
+.distance-input {
+  box-sizing: border-box;
+  width: 9rem;
+  padding: 0.625rem 2.75rem 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
 }
-.input-no-spinner::-webkit-outer-spin-button,
-.input-no-spinner::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+.distance-input:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 15%, transparent);
+}
+.distance-input::placeholder {
+  color: var(--color-text-muted);
 }
 
 /* Dual-range price slider */

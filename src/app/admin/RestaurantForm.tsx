@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { RestaurantRow, RestaurantInsert, CuisineCategory } from "@/lib/supabase/types";
 
 type Restaurant = RestaurantRow;
@@ -104,35 +104,6 @@ function PriceSlider({ min, max, onChange }: PriceSliderProps) {
   );
 }
 
-// Parse a place name from common Google Maps URL formats
-function parseGoogleMapsName(url: string): string | null {
-  try {
-    const decoded = decodeURIComponent(url);
-
-    // /maps/place/Place+Name/@ or /maps/place/Place%20Name/@
-    const placeMatch = decoded.match(/\/maps\/place\/([^/@?]+)/);
-    if (placeMatch) {
-      return placeMatch[1].replace(/\+/g, " ").trim();
-    }
-
-    // /maps/search/Place+Name/
-    const searchMatch = decoded.match(/\/maps\/search\/([^/@?]+)/);
-    if (searchMatch) {
-      return searchMatch[1].replace(/\+/g, " ").trim();
-    }
-
-    // ?q=Place+Name
-    const qMatch = decoded.match(/[?&]q=([^&]+)/);
-    if (qMatch) {
-      return qMatch[1].replace(/\+/g, " ").trim();
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 interface Props {
   initial?: Restaurant;
   onSaved: (r: Restaurant) => void;
@@ -140,9 +111,6 @@ interface Props {
 }
 
 export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
-  const [mapsUrl, setMapsUrl] = useState("");
-  const [resolving, setResolving] = useState(false);
-  const [mapsHint, setMapsHint] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showImageUrlInput, setShowImageUrlInput] = useState(false);
 
@@ -221,44 +189,6 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
     set("tags", form.tags.filter((t) => t !== tag));
   }
 
-  async function handleParseUrl() {
-    if (!mapsUrl.trim()) return;
-    setResolving(true);
-    setMapsHint(null);
-
-    // Try client-side parse first
-    const name = parseGoogleMapsName(mapsUrl);
-    if (name) {
-      set("name", name);
-      setMapsHint(`Suggested name: "${name}" — edit if needed`);
-      setResolving(false);
-      return;
-    }
-
-    // Short URL (maps.app.goo.gl) — resolve server-side
-    try {
-      const res = await fetch("/api/admin/resolve-maps", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: mapsUrl }),
-      });
-      if (res.ok) {
-        const { name: resolved } = await res.json();
-        if (resolved) {
-          set("name", resolved);
-          setMapsHint(`Suggested name: "${resolved}" — edit if needed`);
-        } else {
-          setMapsHint("Couldn't parse a name — enter it manually");
-        }
-      } else {
-        setMapsHint("Couldn't resolve this URL — enter the name manually");
-      }
-    } catch {
-      setMapsHint("Couldn't resolve this URL — enter the name manually");
-    }
-    setResolving(false);
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -300,35 +230,6 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
-
-      {/* Google Maps URL parser — only show for new restaurants */}
-      {!initial && (
-        <div className="bg-brand/5 border border-brand/20 rounded-xl p-3 space-y-2">
-          <p className="text-xs font-semibold text-brand flex items-center gap-1.5">
-            <Link2 size={13} /> Paste Google Maps link to auto-fill name
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={mapsUrl}
-              onChange={(e) => setMapsUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleParseUrl(); } }}
-              className="input flex-1 text-sm"
-              placeholder="https://maps.google.com/… or maps.app.goo.gl/…"
-            />
-            <button
-              type="button"
-              onClick={handleParseUrl}
-              disabled={resolving || !mapsUrl.trim()}
-              className="px-3 py-2 bg-brand text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {resolving ? <Loader2 size={14} className="animate-spin" /> : "Fill"}
-            </button>
-          </div>
-          {mapsHint && <p className="text-xs text-text-muted">{mapsHint}</p>}
-        </div>
-      )}
-
       {/* Name */}
       <Field label="Name *">
         <input
@@ -400,19 +301,24 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
               placeholder="Address / area"
             />
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-text-muted">Distance from XMUM</span>
-              <div className="relative w-32 shrink-0">
+              <label htmlFor="distance-km" className="text-xs text-text-muted">
+                Distance from XMUM
+              </label>
+              <div className="relative shrink-0">
                 <input
-                  type="number"
+                  id="distance-km"
+                  type="text"
                   inputMode="decimal"
-                  step="0.1"
-                  min="0"
                   value={form.distance_km ?? ""}
-                  onChange={(e) => set("distance_km", e.target.value === "" ? null : Number(e.target.value))}
-                  className="input input-no-spinner pr-10 text-right"
+                  onChange={(e) => {
+                    const [whole, ...rest] = e.target.value.replace(/[^\d.]/g, "").split(".");
+                    const value = [whole, rest.join("")].filter((part, i) => i === 0 || part !== "").join(".");
+                    set("distance_km", value === "" ? null : Number(value));
+                  }}
+                  className="distance-input"
                   placeholder="0.0"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted pointer-events-none">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted pointer-events-none select-none">
                   km
                 </span>
               </div>

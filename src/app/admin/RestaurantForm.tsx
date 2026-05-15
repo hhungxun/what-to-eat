@@ -168,10 +168,15 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        setError(data.error ?? "Failed to upload image");
+        setError(data?.error ?? "Failed to upload image");
+        return;
+      }
+
+      if (!data?.url) {
+        setError("Upload succeeded but no image URL was returned");
         return;
       }
 

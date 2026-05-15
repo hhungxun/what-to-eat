@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { SwipeDeck } from "@/components/swipe/SwipeDeck";
@@ -52,7 +53,9 @@ export function SwipeSession({ restaurants }: { restaurants: Restaurant[] }) {
     <div className="h-screen flex flex-col bg-bg overflow-hidden">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 bg-bg/80 backdrop-blur-sm">
-        <span className="font-black text-xl text-brand tracking-tight">What To Eat?</span>
+        <Link href="/" className="font-black text-xl text-brand tracking-tight">
+          What To Eat?
+        </Link>
         <span className="text-xs text-text-muted">XMUM</span>
       </header>
 

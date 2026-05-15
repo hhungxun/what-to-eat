@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
-
-function isAdmin(req: Request) {
-  const cookie = req.headers.get("cookie") ?? "";
-  const match = cookie.match(/wte-admin=([^;]+)/);
-  const value = match?.[1];
-  if (!value) return false;
-  const secrets = (process.env.ADMIN_SECRETS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return secrets.includes(value);
-}
+import { isAdminRequest } from "@/lib/admin-auth";
 
 export async function POST(req: Request) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;

@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
-
-function getAllowedSecrets(): string[] {
-  return (process.env.ADMIN_SECRETS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
+import { getAdminSecrets } from "@/lib/admin-auth";
 
 export async function POST(req: Request) {
   const { password } = await req.json();
 
-  const allowed = getAllowedSecrets();
+  const allowed = getAdminSecrets();
   if (!allowed.includes(password)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
-  // Store the password itself so the proxy can verify it's still in the allowed list
   res.cookies.set("wte-admin", password, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

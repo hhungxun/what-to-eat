@@ -1,31 +1,33 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { isAdminSecret } from "@/lib/admin-auth";
 
 function isAdminAuthorized(request: NextRequest): boolean {
-  const cookie = request.cookies.get("wte-admin")?.value;
-  if (!cookie) return false;
-
-  const secrets = (process.env.ADMIN_SECRETS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  return secrets.includes(cookie);
+  return isAdminSecret(request.cookies.get("wte-admin")?.value);
 }
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Admin route protection
-  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
+  if (pathname === "/admin/login" && isAdminAuthorized(request)) {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
+  if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
     if (!isAdminAuthorized(request)) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
     return NextResponse.next();
   }
 
-  // Supabase session refresh for all other routes
+  if (pathname.startsWith("/api/admin") && pathname !== "/api/admin/auth") {
+    if (!isAdminAuthorized(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.next();
+  }
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return NextResponse.next({ request });
   }

@@ -1,13 +1,5 @@
 import { NextResponse } from "next/server";
-
-function isAdmin(req: Request) {
-  const cookie = req.headers.get("cookie") ?? "";
-  const match = cookie.match(/wte-admin=([^;]+)/);
-  const value = match?.[1];
-  if (!value) return false;
-  const secrets = (process.env.ADMIN_SECRETS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return secrets.includes(value);
-}
+import { isAdminRequest } from "@/lib/admin-auth";
 
 /** Extract place name from any Google Maps URL format */
 function parseNameFromUrl(rawUrl: string): string | null {
@@ -59,7 +51,7 @@ function parseNameFromHtml(html: string): string | null {
 }
 
 export async function POST(req: Request) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { url } = await req.json();
   if (!url || typeof url !== "string") {

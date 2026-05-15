@@ -392,22 +392,31 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
             placeholder="Block/stall code e.g. A-103, D6"
           />
         ) : (
-          <div className="flex gap-2">
+          <div className="space-y-2">
             <input
               value={form.location_label ?? ""}
               onChange={(e) => set("location_label", e.target.value)}
-              className="input flex-1"
+              className="input"
               placeholder="Address / area"
             />
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              value={form.distance_km ?? ""}
-              onChange={(e) => set("distance_km", e.target.value === "" ? null : Number(e.target.value))}
-              className="input w-24"
-              placeholder="km"
-            />
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-text-muted">Distance from XMUM</span>
+              <div className="relative w-32 shrink-0">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min="0"
+                  value={form.distance_km ?? ""}
+                  onChange={(e) => set("distance_km", e.target.value === "" ? null : Number(e.target.value))}
+                  className="input input-no-spinner pr-10 text-right"
+                  placeholder="0.0"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted pointer-events-none">
+                  km
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </Field>

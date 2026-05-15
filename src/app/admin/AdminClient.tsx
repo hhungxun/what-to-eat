@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { RestaurantRow } from "@/lib/supabase/types";
 import { RestaurantForm } from "./RestaurantForm";
 import { RestaurantRowItem } from "./RestaurantRow";
-import { Plus, LayoutGrid, Search } from "lucide-react";
+import { Plus, LayoutGrid, Search, Trash2, Loader2 } from "lucide-react";
 
 type Restaurant = RestaurantRow;
 
@@ -18,6 +18,9 @@ export function AdminClient({ restaurants: initial }: Props) {
   const [editing, setEditing] = useState<Restaurant | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const filtered = restaurants.filter((r) => {
     const matchSearch =
@@ -46,12 +49,67 @@ export function AdminClient({ restaurants: initial }: Props) {
 
   function handleDeleted(id: string) {
     setRestaurants((prev) => prev.filter((r) => r.id !== id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   }
 
   function openEdit(r: Restaurant) {
     setEditing(r);
     setShowForm(true);
   }
+
+  function toggleSelection(id: string, selected: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (selected) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function selectAllFiltered() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filtered.forEach((r) => next.add(r.id));
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} selected restaurant${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+
+    setBulkDeleting(true);
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        const res = await fetch(`/api/admin/restaurants/${id}`, { method: "DELETE" });
+        return { id, ok: res.ok };
+      })
+    );
+    const deletedIds = new Set(results.filter((result) => result.ok).map((result) => result.id));
+
+    setRestaurants((prev) => prev.filter((r) => !deletedIds.has(r.id)));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      deletedIds.forEach((id) => next.delete(id));
+      return next;
+    });
+    setBulkDeleting(false);
+
+    const failed = results.length - deletedIds.size;
+    if (failed > 0) alert(`${failed} restaurant${failed === 1 ? "" : "s"} could not be deleted.`);
+  }
+
+  const selectedCount = selectedIds.size;
+  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
 
   return (
     <div className="min-h-screen bg-bg">
@@ -95,6 +153,51 @@ export function AdminClient({ restaurants: initial }: Props) {
           </select>
         </div>
 
+        <div className="flex items-center justify-between gap-2 bg-surface rounded-xl border border-border px-3 py-2">
+          <div>
+            <p className="text-sm font-semibold text-text">
+              {selectedCount > 0 ? `${selectedCount} selected` : "Bulk select"}
+            </p>
+            <p className="text-xs text-text-muted">
+              {selecting ? "Choose restaurants to delete" : "Select multiple restaurants"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {selecting && (
+              <>
+                <button
+                  type="button"
+                  onClick={allFilteredSelected ? clearSelection : selectAllFiltered}
+                  disabled={bulkDeleting || filtered.length === 0}
+                  className="px-3 py-2 rounded-lg border border-border text-text-muted text-sm font-semibold disabled:opacity-50"
+                >
+                  {allFilteredSelected ? "Clear" : "Select all"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting || selectedCount === 0}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold disabled:opacity-50"
+                >
+                  {bulkDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  Delete
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSelecting((prev) => !prev);
+                if (selecting) clearSelection();
+              }}
+              disabled={bulkDeleting}
+              className="px-3 py-2 rounded-lg bg-brand text-white text-sm font-semibold disabled:opacity-50"
+            >
+              {selecting ? "Done" : "Select"}
+            </button>
+          </div>
+        </div>
+
         {/* List */}
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-text-muted">
@@ -110,6 +213,10 @@ export function AdminClient({ restaurants: initial }: Props) {
                 onEdit={() => openEdit(r)}
                 onDeleted={() => handleDeleted(r.id)}
                 onToggle={(updated) => handleSaved(updated)}
+                selectable={selecting}
+                selected={selectedIds.has(r.id)}
+                onSelect={(selected) => toggleSelection(r.id, selected)}
+                disabled={bulkDeleting}
               />
             ))}
           </div>

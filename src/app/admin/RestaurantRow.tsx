@@ -16,9 +16,22 @@ interface Props {
   onEdit: () => void;
   onDeleted: () => void;
   onToggle: (updated: Restaurant) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (selected: boolean) => void;
+  disabled?: boolean;
 }
 
-export function RestaurantRowItem({ restaurant: r, onEdit, onDeleted, onToggle }: Props) {
+export function RestaurantRowItem({
+  restaurant: r,
+  onEdit,
+  onDeleted,
+  onToggle,
+  selectable = false,
+  selected = false,
+  onSelect,
+  disabled = false,
+}: Props) {
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
 
@@ -31,7 +44,7 @@ export function RestaurantRowItem({ restaurant: r, onEdit, onDeleted, onToggle }
 
   async function handleToggle() {
     setToggling(true);
-    const res = await fetch(`/api/admin/restaurants/${r.id}`, {
+      const res = await fetch(`/api/admin/restaurants/${r.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_active: !r.is_active }),
@@ -44,8 +57,18 @@ export function RestaurantRowItem({ restaurant: r, onEdit, onDeleted, onToggle }
   }
 
   return (
-    <div className={`bg-surface rounded-xl p-3 shadow-sm border ${r.is_active ? "border-transparent" : "border-border opacity-60"}`}>
+    <div className={`bg-surface rounded-xl p-3 shadow-sm border ${selected ? "border-brand" : r.is_active ? "border-transparent" : "border-border opacity-60"}`}>
       <div className="flex items-center gap-3">
+        {selectable && (
+          <input
+            type="checkbox"
+            checked={selected}
+            disabled={disabled}
+            onChange={(e) => onSelect?.(e.target.checked)}
+            className="w-5 h-5 accent-brand shrink-0"
+            aria-label={`Select ${r.name}`}
+          />
+        )}
         <span className="text-2xl">{CUISINE_EMOJI[r.cuisine_category]}</span>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-text text-sm truncate">{r.name}</p>
@@ -62,7 +85,7 @@ export function RestaurantRowItem({ restaurant: r, onEdit, onDeleted, onToggle }
           {/* Active toggle */}
           <button
             onClick={handleToggle}
-            disabled={toggling}
+            disabled={toggling || disabled}
             title={r.is_active ? "Deactivate" : "Activate"}
             className={`w-9 h-5 rounded-full transition-colors ${r.is_active ? "bg-brand" : "bg-border"}`}
           >
@@ -72,14 +95,15 @@ export function RestaurantRowItem({ restaurant: r, onEdit, onDeleted, onToggle }
           </button>
           <button
             onClick={onEdit}
-            className="p-2 text-text-muted hover:text-brand rounded-lg"
+            disabled={disabled}
+            className="p-2 text-text-muted hover:text-brand rounded-lg disabled:opacity-40"
           >
             <Pencil size={15} />
           </button>
           <button
             onClick={handleDelete}
-            disabled={deleting}
-            className="p-2 text-text-muted hover:text-red-500 rounded-lg"
+            disabled={deleting || disabled}
+            className="p-2 text-text-muted hover:text-red-500 rounded-lg disabled:opacity-40"
           >
             <Trash2 size={15} />
           </button>

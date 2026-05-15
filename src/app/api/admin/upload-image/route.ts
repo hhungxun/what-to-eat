@@ -14,6 +14,24 @@ function extensionFor(file: File) {
   return file.type.split("/")[1] ?? "jpg";
 }
 
+function storagePathFromPublicUrl(url: string, supabaseUrl: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+
+  if (parsed.origin !== new URL(supabaseUrl).origin) return null;
+
+  const marker = `/storage/v1/object/public/${BUCKET}/`;
+  const markerIndex = parsed.pathname.indexOf(marker);
+  if (markerIndex < 0) return null;
+
+  const path = parsed.pathname.slice(markerIndex + marker.length);
+  return path ? decodeURIComponent(path) : null;
+}
+
 async function ensureBucket(supabase: ReturnType<typeof createClient<Database>>) {
   const { data: bucket, error: getError } = await supabase.storage.getBucket(BUCKET);
   if (bucket) {
@@ -32,13 +50,18 @@ async function ensureBucket(supabase: ReturnType<typeof createClient<Database>>)
   return error ?? null;
 }
 
+function uploadConfig() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return supabaseUrl && serviceRoleKey ? { supabaseUrl, serviceRoleKey } : null;
+}
+
 export async function POST(req: Request) {
   if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const config = uploadConfig();
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!config) {
     return NextResponse.json({ error: "Image upload is not configured" }, { status: 500 });
   }
 
@@ -50,6 +73,7 @@ export async function POST(req: Request) {
   }
 
   const file = formData.get("file");
+  const previousUrl = formData.get("previousUrl");
   if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
   if (!(file instanceof File)) return NextResponse.json({ error: "Invalid file" }, { status: 400 });
   if (!file.type.startsWith("image/")) {
@@ -59,7 +83,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Image must be 5 MB or smaller" }, { status: 400 });
   }
 
-  const supabase = createClient<Database>(supabaseUrl, serviceRoleKey);
+  const supabase = createClient<Database>(config.supabaseUrl, config.serviceRoleKey);
 
   const bucketError = await ensureBucket(supabase);
   if (bucketError) {
@@ -84,9 +108,47 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 });
   }
 
+  if (typeof previousUrl === "string" && previousUrl) {
+    const previousPath = storagePathFromPublicUrl(previousUrl, config.supabaseUrl);
+    if (previousPath && previousPath !== fileName) {
+      const { error: removeError } = await supabase.storage.from(BUCKET).remove([previousPath]);
+      if (removeError) console.error("[upload-image] previous image cleanup error:", removeError);
+    }
+  }
+
   const { data: { publicUrl } } = supabase.storage
     .from(BUCKET)
     .getPublicUrl(fileName);
 
   return NextResponse.json({ url: publicUrl });
+}
+
+export async function DELETE(req: Request) {
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const config = uploadConfig();
+
+  if (!config) {
+    return NextResponse.json({ error: "Image upload is not configured" }, { status: 500 });
+  }
+
+  const { url } = await req.json().catch(() => ({ url: null }));
+  if (!url || typeof url !== "string") {
+    return NextResponse.json({ error: "Missing image URL" }, { status: 400 });
+  }
+
+  const path = storagePathFromPublicUrl(url, config.supabaseUrl);
+  if (!path) {
+    return NextResponse.json({ error: "Only uploaded restaurant images can be removed" }, { status: 400 });
+  }
+
+  const supabase = createClient<Database>(config.supabaseUrl, config.serviceRoleKey);
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+
+  if (error) {
+    console.error("[upload-image] delete error:", error);
+    return NextResponse.json({ error: `Delete failed: ${error.message}` }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

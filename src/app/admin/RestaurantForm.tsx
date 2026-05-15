@@ -112,6 +112,7 @@ interface Props {
 
 export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [removingImage, setRemovingImage] = useState(false);
   const [showImageUrlInput, setShowImageUrlInput] = useState(false);
 
   const [priceMin, setPriceMin] = useState(initial?.price_min ?? 1);
@@ -162,6 +163,7 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
 
     const formData = new FormData();
     formData.append("file", file);
+    if (form.image_url) formData.append("previousUrl", form.image_url);
 
     try {
       const res = await fetch("/api/admin/upload-image", {
@@ -187,6 +189,33 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
     } finally {
       setUploadingImage(false);
       e.target.value = "";
+    }
+  }
+
+  async function handleRemoveImage() {
+    if (!form.image_url) return;
+    setRemovingImage(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/admin/upload-image", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: form.image_url }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(data?.error ?? "Failed to remove image");
+        return;
+      }
+
+      set("image_url", null);
+      setShowImageUrlInput(false);
+    } catch {
+      setError("Failed to remove image");
+    } finally {
+      setRemovingImage(false);
     }
   }
 
@@ -366,21 +395,31 @@ export function RestaurantForm({ initial, onSaved, onCancel }: Props) {
       <Field label="Image">
         <div className="space-y-2">
           {form.image_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={form.image_url}
-              alt=""
-              className="max-h-24 rounded-xl object-cover border border-border"
-            />
+            <div className="space-y-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.image_url}
+                alt=""
+                className="max-h-24 rounded-xl object-cover border border-border"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                disabled={removingImage || uploadingImage}
+                className="text-xs text-red-500 font-semibold disabled:opacity-50"
+              >
+                {removingImage ? "Removing..." : "Remove image"}
+              </button>
+            </div>
           )}
           <label className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-brand text-white text-sm font-semibold cursor-pointer disabled:opacity-50">
             {uploadingImage && <Loader2 size={14} className="animate-spin" />}
-            {uploadingImage ? "Uploading..." : "Upload image"}
+            {uploadingImage ? "Uploading..." : form.image_url ? "Replace image" : "Upload image"}
             <input
               type="file"
               accept="image/*"
               onChange={handleImageUpload}
-              disabled={uploadingImage}
+              disabled={uploadingImage || removingImage}
               className="hidden"
             />
           </label>
